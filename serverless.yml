@@ -1,0 +1,63 @@
+# serverless.yml
+
+service: TreasureCache
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline #serverless-offline needs to be last in the list
+
+custom:
+  tableName: 'challenges-table-${self:provider.stage}'
+  dynamodb:
+    start:
+      migrate: true
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["UsersDynamoDBTable", "Arn" ] }
+  environment:
+    CHALLENGES_TABLE: ${self:custom.tableName}
+
+functions:
+  app:
+    handler: index.handler
+    events:
+      - http: ANY /
+  getChallenges:
+    handler: index.handler
+    events:
+      - http: 'GET /challenges'
+  createChallenges:
+    handler: index.handler
+    events:
+      - http: 'POST /challenges'
+
+resources:
+  Resources:
+    UsersDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: ChallengeName
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: ChallengeName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableName}
